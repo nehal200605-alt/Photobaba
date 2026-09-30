@@ -1,8 +1,6 @@
 python-telegram-bot==21.6
 fastapi==0.115.0
 uvicorn==0.32.0
-pillow==10.4.0
+pillow==11.0.0
 requests==2.32.3
-rembg==2.0.50
-onnxruntime==1.17.0
 google-generativeai==0.8.3
