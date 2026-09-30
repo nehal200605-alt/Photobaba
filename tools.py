@@ -1,6 +1,5 @@
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 from io import BytesIO
-import os
 
 # ---------- Resize ----------
 def resize_image(image_bytes: bytes, width: int, height: int) -> bytes:
@@ -44,7 +43,6 @@ def to_pdf(image_bytes: bytes) -> bytes:
 # ---------- Insta Grid (3x3) ----------
 def insta_grid(image_bytes: bytes):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
-    # Square banao
     size = max(img.size)
     square = Image.new("RGB", (size, size), (255, 255, 255))
     square.paste(img, ((size - img.width) // 2, (size - img.height) // 2))
@@ -76,10 +74,44 @@ def add_watermark(image_bytes: bytes, text: str = "© MyBot") -> bytes:
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     x, y = w - tw - 20, h - th - 20
 
-    # Shadow
     draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0))
     draw.text((x, y), text, font=font, fill=(255, 255, 255))
 
     out = BytesIO()
     img.save(out, format="JPEG", quality=92)
+    return out.getvalue()
+
+# ---------- BG Remove (rembg) ----------
+_rembg_session = None
+
+def remove_bg(image_bytes: bytes) -> bytes:
+    global _rembg_session
+    from rembg import remove, new_session
+    if _rembg_session is None:
+        _rembg_session = new_session("u2net_human_seg")
+    result = remove(image_bytes, session=_rembg_session)
+    return result
+
+# ---------- BG Color (White/Blue/Red) ----------
+def change_bg_color(image_bytes: bytes, color: str = "white") -> bytes:
+    from rembg import remove, new_session
+    global _rembg_session
+    if _rembg_session is None:
+        _rembg_session = new_session("u2net_human_seg")
+
+    no_bg = remove(image_bytes, session=_rembg_session)
+    fg = Image.open(BytesIO(no_bg)).convert("RGBA")
+
+    color_map = {
+        "white": (255, 255, 255),
+        "blue": (0, 102, 204),
+        "red": (204, 0, 0),
+    }
+    bg_color = color_map.get(color, (255, 255, 255))
+
+    bg = Image.new("RGBA", fg.size, bg_color + (255,))
+    combined = Image.alpha_composite(bg, fg).convert("RGB")
+
+    out = BytesIO()
+    combined.save(out, format="JPEG", quality=92)
     return out.getvalue()
