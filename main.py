@@ -1,4 +1,3 @@
-
 import os
 import logging
 from contextlib import asynccontextmanager
@@ -16,9 +15,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-WEBHOOK_URL = os.if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "").strip().rstrip("/")
+PORT = int(os.environ.get("PORT", 8080))
+
 if not BOT_TOKEN:
     raise ValueError("❌ TELEGRAM_BOT_TOKEN missing!")
 if not WEBHOOK_URL:
@@ -90,7 +89,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# Register
+# Register Handlers
 ptb_app.add_handler(CommandHandler("start", start))
 ptb_app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
 ptb_app.add_handler(CallbackQueryHandler(button_handler))
@@ -129,3 +128,10 @@ async def webhook(request: Request):
 @app.get("/")
 async def health():
     return {"status": "ok", "bot": "running"}
+
+
+# ---------- Run Server ----------
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
