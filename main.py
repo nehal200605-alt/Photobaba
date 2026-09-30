@@ -1,5 +1,6 @@
 import os
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -13,12 +14,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-RAILWAY_URL = os.environ.get("RAILWAY_URL")  # e.g. https://your-app.up.railway.app
-WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "").strip().rstrip("/")
 
-app = FastAPI()
-ptb_app = Application.builder().token(BOT_TOKEN).build()
+if not BOT_TOKEN:
+    raise ValueError("❌ TELEGRAM_BOT_TOKEN missing!")
+if not WEBHOOK_URL:
+    raise ValueError("❌ WEBHOOK_URL missing!")
+
+WEBHOOK_PATH = "/webhook"
+
+# Telegram App
+ptb_app = Application.builder().token(BOT_TOKEN).updater(None).build()
 
 
 # ---------- Handlers ----------
@@ -32,7 +39,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Save file_id for later use
     photo = update.message.photo[-1]
     context.user_data["photo_id"] = photo.file_id
 
@@ -46,11 +52,9 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📄 PDF Banao", callback_data="pdf"),
          InlineKeyboardButton("🔲 Insta Grid", callback_data="grid")],
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text(
         "📸 Photo mil gaya! Feature select karo:",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -65,7 +69,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ Pehle photo bhejo bhai!")
         return
 
-    # Phase 1: placeholder responses
     feature_names = {
         "bg_remove": "🖼️ BG Remove",
         "upscale": "✨ HD Upscale 2x",
@@ -85,28 +88,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# ---------- Register Handlers ----------
-
+# Register
 ptb_app.add_handler(CommandHandler("start", start))
 ptb_app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
 ptb_app.add_handler(CallbackQueryHandler(button_handler))
 
 
-# ---------- FastAPI Routes ----------
+# ---------- Lifespan (FastAPI new way) ----------
 
-@app.on_event("startup")
-async def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     await ptb_app.initialize()
-    await ptb_app.bot.set_webhook(url=f"{RAILWAY_URL}{WEBHOOK_PATH}")
-    await ptb_app.start()
-    logger.info("Webhook set: %s%s", RAILWAY_URL, WEBHOOK_PATH)
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    await ptb_app.stop()
+    await ptb_app.bot.set_webhook(
+        url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
+        drop_pending_updates=True
+    )
+    logger.info(f"✅ Webhook set: {WEBHOOK_URL}{WEBHOOK_PATH}")
+    logger.info("🚀 Bot is LIVE!")
+    yield
+    await ptb_app.bot.delete_webhook()
     await ptb_app.shutdown()
+    logger.info("🛑 Bot stopped.")
 
+
+app = FastAPI(lifespan=lifespan)
+
+
+# ---------- Routes ----------
 
 @app.post(WEBHOOK_PATH)
 async def webhook(request: Request):
