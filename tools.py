@@ -1,16 +1,16 @@
-from PIL import Image, ImageOps, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
-# ---------- Resize ----------
-def resize_image(image_bytes: bytes, width: int, height: int) -> bytes:
+
+def resize_image(image_bytes, width, height):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
     img = img.resize((width, height), Image.LANCZOS)
     out = BytesIO()
     img.save(out, format="JPEG", quality=92)
     return out.getvalue()
 
-# ---------- Quick Resize (50%) ----------
-def quick_resize(image_bytes: bytes, scale: float = 0.5) -> bytes:
+
+def quick_resize(image_bytes, scale=0.5):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
     w, h = img.size
     img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
@@ -18,30 +18,30 @@ def quick_resize(image_bytes: bytes, scale: float = 0.5) -> bytes:
     img.save(out, format="JPEG", quality=92)
     return out.getvalue()
 
-# ---------- Rotate ----------
-def rotate_image(image_bytes: bytes, angle: int = 90) -> bytes:
+
+def rotate_image(image_bytes, angle=90):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
     img = img.rotate(-angle, expand=True)
     out = BytesIO()
     img.save(out, format="JPEG", quality=92)
     return out.getvalue()
 
-# ---------- JPG Convert ----------
-def to_jpg(image_bytes: bytes) -> bytes:
+
+def to_jpg(image_bytes):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
     out = BytesIO()
     img.save(out, format="JPEG", quality=95)
     return out.getvalue()
 
-# ---------- PDF Banao ----------
-def to_pdf(image_bytes: bytes) -> bytes:
+
+def to_pdf(image_bytes):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
     out = BytesIO()
     img.save(out, format="PDF")
     return out.getvalue()
 
-# ---------- Insta Grid (3x3) ----------
-def insta_grid(image_bytes: bytes):
+
+def insta_grid(image_bytes):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
     size = max(img.size)
     square = Image.new("RGB", (size, size), (255, 255, 255))
@@ -60,8 +60,8 @@ def insta_grid(image_bytes: bytes):
             parts.append(out.getvalue())
     return parts
 
-# ---------- Watermark ----------
-def add_watermark(image_bytes: bytes, text: str = "© MyBot") -> bytes:
+
+def add_watermark(image_bytes, text="© PhotoBaba"):
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
     draw = ImageDraw.Draw(img)
     try:
@@ -79,39 +79,4 @@ def add_watermark(image_bytes: bytes, text: str = "© MyBot") -> bytes:
 
     out = BytesIO()
     img.save(out, format="JPEG", quality=92)
-    return out.getvalue()
-
-# ---------- BG Remove (rembg) ----------
-_rembg_session = None
-
-def remove_bg(image_bytes: bytes) -> bytes:
-    global _rembg_session
-    from rembg import remove, new_session
-    if _rembg_session is None:
-        _rembg_session = new_session("u2net_human_seg")
-    result = remove(image_bytes, session=_rembg_session)
-    return result
-
-# ---------- BG Color (White/Blue/Red) ----------
-def change_bg_color(image_bytes: bytes, color: str = "white") -> bytes:
-    from rembg import remove, new_session
-    global _rembg_session
-    if _rembg_session is None:
-        _rembg_session = new_session("u2net_human_seg")
-
-    no_bg = remove(image_bytes, session=_rembg_session)
-    fg = Image.open(BytesIO(no_bg)).convert("RGBA")
-
-    color_map = {
-        "white": (255, 255, 255),
-        "blue": (0, 102, 204),
-        "red": (204, 0, 0),
-    }
-    bg_color = color_map.get(color, (255, 255, 255))
-
-    bg = Image.new("RGBA", fg.size, bg_color + (255,))
-    combined = Image.alpha_composite(bg, fg).convert("RGB")
-
-    out = BytesIO()
-    combined.save(out, format="JPEG", quality=92)
     return out.getvalue()
