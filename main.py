@@ -16,8 +16,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "").strip().rstrip("/")
-
+WEBHOOK_URL = os.if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
 if not BOT_TOKEN:
     raise ValueError("❌ TELEGRAM_BOT_TOKEN missing!")
 if not WEBHOOK_URL:
